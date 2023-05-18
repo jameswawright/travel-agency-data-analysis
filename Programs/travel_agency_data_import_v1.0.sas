@@ -15,19 +15,19 @@ filename extdata "&data_path.";
 
 /* Definine SAS data files, libraries, and locations */
 *Path to point library to;
-%let lib_path = &project_path.\SAS\Data;
+%let data_path = &project_path.\SAS\Data;
 * Assigning custdata library for raw data;
-libname custdata "&lib_path.\Raw";
+libname custdata "&data_path.\Raw";
 * Assigning staging data library for cleaning data in;
-libname custstag "&lib_path.\Staging";
+libname custstag "&data_path.\Staging";
 * Assigning detail data library for cleaned data;
-libname custdetl "&lib_path.\Detail";
+libname custdetl "&data_path.\Detail";
 * Assigning marts data library for data subsets;
-libname custmart "&lib_path.\Marts";
+libname custmart "&data_path.\Marts";
 * Assigning exceptions data library for exceptional values;
-libname custexcp "&lib_path.\Exceptions";
+libname custexcp "&data_path.\Exceptions";
 * Assigning metadata data library for metadata;
-libname custmeta "&lib_path.\Metadata";
+libname custmeta "&data_path.\Metadata";
 
 /* Importing data to SAS datasets */
 * Importing bookings csv data;
@@ -63,8 +63,12 @@ data custdata.bookings;
 			pax = 'Number of Customers'
 			insurance_code = 'Customer Added Insurance'
 			room_type = 'Room Type'
-			holiday_cost = 'Total Cost (Â£) of Holiday'
+			holiday_cost = 'Total Cost (£) of Holiday'
 			destination_code = 'Destination Code';
+
+	format booked_date DDMMYY10.
+	       departure_date DDMMYY10.
+		   holiday_cost nlmnlgbp8.2;
 run;
 
 * Importing destinations csv data;
@@ -134,6 +138,10 @@ data custdata.households;
 		   loyalty_id = 'Loyalty Identification'
 		   interests = 'Customer Interests'
 		   email1 = 'Email Address';
+
+	format dob DDMMYY10.
+	       customer_startdate DDMMYY10.
+		   contact_date DDMMYY10.;
 run;
 
 * Importing loyalty tabulated data;
@@ -156,63 +164,54 @@ data custdata.loyalty;
 		   investor_type = 'Type of Investor'
 		   current_value = 'Current Share Value'
 		   invested_date = 'Investment Date';
+
+	format invested_date DDMMYY10.;
 run;
 
-/* Creating Interest Coding Dataset for Use Theoretically in Future 
-   and because I just typed it and now I don't want to delete it :) */
+/* Creating interest_coding dataset to theoretically allow code 
+   to generalise to new interests and codes in future */
 data custdata.interest_coding;
 	infile cards delimiter=',';
-	length code $ 1
+	length code $ 5
 	       description $ 20;
 	input  code $ 
            description $;
 
 	datalines;
-A,Mountaineering
-K,Mountaineering
-L,Mountaineering
+A|K|L,Mountaineering
 B,Water Sports
-C,Sightseeing
-X,Sightseeing
+C|X,Sightseeing
 D,Cycling
 E,Climbing
-F,Dancing
-W,Dancing
-H,Hiking
-G,Hiking
-J,Skiing
+F|W,Dancing
+H|G|J,Hiking
 M,Snowboarding
 N,White Water Rafting
-P,Scuba Diving
-Q,Scuba Diving
-R,Scuba Diving
+P|Q|R,Scuba Diving
 S,Yoga
-T,Mountain Biking
-U,Mountain Biking
-V,Trail Walking
-Y,Trail Walking
-Z,Trail Walking
+T|U,Mountain Biking
+V|Y|Z,Trail Walking
 ;
 run;
 
 /* Producing a PDF of the Metadata for bookings, destinations, households, loyalty */
 ods pdf file="&report_dest.\ReportA.pdf";
 
-	* Meta Data Output for Bookings Dataset;
-	%proccontents(custdata, bookings, title = Metadata for Holiday Bookings Dataset);
-	ods text='When defining the format the bookings dataset, we have assumed an upper-bound of Â£99,999.99 on holiday cost through intuition. It was necessary to informat all dates with date9, and skip a header on the first line contained in the csv file.';
+	* Metadata Output for Bookings Dataset;
+	%proccontents(custdata, bookings, title = Metadata for Holiday Bookings Dataset., outdat=custmeta.metadata_bookings);
+	ods text='When defining the format the bookings dataset, we have assumed an upper-bound of £99,999.99 on holiday cost through intuition. It was necessary to informat all dates with date9, and skip a header on the first line contained in the csv file.';
 	
-	* Meta Data Output for Bookings Dataset;
-	%proccontents(custdata, destinations, title = Metadata for Holiday Destinations Dataset);
+	* Metadata Output for Destinations Dataset;
+	%proccontents(custdata, destinations, title = Metadata for Holiday Destinations Dataset., outdat=custmeta.metadata_destinations);
 	ods text='We assumed descriptions of a maximum length 25, and skipped a header line in the CSV-file read-in.';
 	
-	* Meta Data Output for Bookings Dataset;
-	%proccontents(custdata, households, title = Metadata for Customer Details Dataset);
+	* Metadata Output for Households Dataset;
+	%proccontents(custdata, households, title = Metadata for Customer Details Dataset., outdat=custmeta.metadata_households);
 	ods text='We have chosen the maximum length of Address1 based on the longest street name in London, St Martin-in-the-Fields Church Path, which is 35 characters, plus 15 characters tolerance for "extras" like flat numbers and spaces. We make a similar assumptions for Address2 with 58 characters to accommodate the town Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch. 
 It was necessary to informat all dates with date9.';
 	
-	* Metadata Output for Bookings Dataset;
-	%proccontents(custdata, loyalty, title = Metadata for Loyalty Shares Dataset);
+	* Metadata Output for Loyalty Dataset;
+	%proccontents(custdata, loyalty, title = Metadata for Loyalty Shares Dataset., outdat=custmeta.metadata_loyalty);
 	ods text='It was necessary to informat all dates with date9. We assumed descriptions will be of maximum length 25.';
 
 ods pdf close;

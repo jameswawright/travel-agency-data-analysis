@@ -10,7 +10,7 @@
 *** USER EDITS DETAILS BELOW ***;
 
 /* Add your path to project file */
-%let project_path = C:\Users\james.wright\OneDrive - Amadeus Software\Case Studies\Travel Agency;
+%let project_path=C:\Users\james.wright\OneDrive - Amadeus Software\Case Studies\Travel Agency;
 
 
 *------ Do not unintentionally edit below this line ------------------------------------------------------------;
@@ -29,3 +29,4 @@ run;
 
 /* Other Options */
 options msglevel=i;
+options fmtsearch=(shared);
