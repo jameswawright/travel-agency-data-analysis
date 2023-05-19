@@ -7,15 +7,17 @@
 *             Katalyze Data Ltd.                                       *
 ************************************************************************;
 
+
+
+
+
+*------ Do not unintentionally edit below this line ------------------------------------------------------------;
+
 /* Defining data input files and locations */
-* Path to original datasets;
-%let data_path = &project_path.\SAS\Data\Inputs;
-* Assigning path variable pointer;
-filename extdata "&data_path.";
+* Assigning path variable pointer to input data folder;
+filename extdata "&indata_path.";
 
 /* Definine SAS data files, libraries, and locations */
-*Path to point library to;
-%let data_path = &project_path.\SAS\Data;
 * Assigning custdata library for raw data;
 libname custdata "&data_path.\Raw";
 * Assigning staging data library for cleaning data in;

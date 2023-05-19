@@ -13,9 +13,25 @@
 %let project_path=C:\Users\james.wright\OneDrive - Amadeus Software\Case Studies\Travel Agency;
 
 
+
+
+
+
+
+
+
+
+
 *------ Do not unintentionally edit below this line ------------------------------------------------------------;
-/* Assigning path to reports across stages */
+/* Creating paths to different parts of the folder structure */
+* Assigning path to original datasets;
+%let indata_path = &project_path.\SAS\Data\Inputs;
+* Assigning path to point data libraries to;
+%let data_path = &project_path.\SAS\Data;
+* Assigning path to reports folder;
 %let report_dest = &project_path.\SAS\Reports;
+* Assigning path to shared library;
+%let shared_path = &project_path.\SAS\Shared;
 
 /* Autocalling Macro Library */
 filename mymacros "&project_path.\SAS\Macros";
@@ -27,6 +43,6 @@ data _null_;
 	call symputx('msglvl', 'g');
 run;
 
-/* Other Options */
+/* Other Session Options */
 options msglevel=i;
 options fmtsearch=(shared);

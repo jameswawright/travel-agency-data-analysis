@@ -7,6 +7,12 @@
 *             Katalyze Data Ltd.                                       *
 ************************************************************************;
 
+
+
+
+
+*------ Do not unintentionally edit below this line ------------------------------------------------------------;
+
 /*** Preparing Houshold Data for Analysis ***/
 
 /* Storing interests distinctly in macro variables to produce interest binary columns in household_detail 
@@ -61,6 +67,7 @@ data custstag.households_detail
 	if missing(gender) and prxmatch(prx_f,title) > 0 then gender = 'F';
 	else if missing(gender) and prxmatch(prx_m,title) > 0 then gender = 'M';
 	else gender=upcase(gender);
+	drop prx_f prx_m;
 	
 	* If still missing gender and title, output customer_id to exceptions to check in future;
 	if missing(gender)=1 and missing(title)=1 then output custexcp.gender_title_missing;
@@ -97,8 +104,8 @@ run;
 /*** Preparing Booking Data for Analysis ***/
 
 /* Creating a format to associate descriptions with destination code */
-* Saving formats to shared library;
-%let shared_path = &project_path.\SAS\Shared;
+
+* Creating path to shared folder for formats;
 libname shared "&shared_path.";
 
 * Using proc format cntlin to create a destination format;
@@ -157,8 +164,11 @@ quit;
 
 
 /*** Data Preparation for Profiling and Analysis ***/
+/* Producing shareholder dataset of customers with loyalty_id by inner joining with data from households*/
+/* Producing household_only dataset of customers who have not made a booking 
+   - Select household data where the customer id does not exist in the bookings dataset */
 proc sql noprint;
-	/* Producing shareholder dataset of customers with loyalty_id by inner joining with data from households*/
+	
 	create table custstag.shareholders as
 		select h.*, l.investor_type, l.account_id, l.invested_date, l.initial_value, l.current_value
 		from custdata.loyalty as l
@@ -166,8 +176,6 @@ proc sql noprint;
 		 	custdata.households as h
         on l.loyalty_id = h.loyalty_id;
 
-	/* Producing household_only dataset of customers who have not made a booking 
-   - Select household data where the customer id does not exist in the bookings dataset */
 	create table custstag.household_only as
 		select *
 		from custdetl.households_detail as hd
@@ -191,12 +199,9 @@ quit;
 
 /*** Reporting ***/
 ods pdf file="&report_dest.\ReportB.pdf";
-	* Number of observations in report;
-	%let numobs = 30;
-
 	* Producing a report of bookings_deposit with 30 observations;
-	%procprint(custmart, bookings_deposit, numobs=&numobs., title=Most recent &numobs. bookings that are more than 6 weeks from the departure date.);
+	%procprint(custmart, bookings_deposit, numobs=30, title=Most recent &numobs. bookings that are more than 6 weeks from the departure date.);
 
 	* Producing a report of bookings_balance with 30 observations;
-	%procprint(custmart, bookings_balance, numobs=&numobs., title=%str(Most recent &numobs. bookings that are less than 6 weeks from the departure date.));
+	%procprint(custmart, bookings_balance, numobs=30, title=%str(Most recent &numobs. bookings that are less than 6 weeks from the departure date.));
 ods pdf close;
