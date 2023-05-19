@@ -44,5 +44,7 @@ data _null_;
 run;
 
 /* Other Session Options */
+* Output information;
 options msglevel=i;
+* Formats found in shared file;
 options fmtsearch=(shared);

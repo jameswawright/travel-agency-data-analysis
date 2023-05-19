@@ -34,14 +34,17 @@ libname custmeta "&data_path.\Metadata";
 /* Importing data to SAS datasets */
 * Importing bookings csv data;
 data custdata.bookings;
+	* Import file to table;
 	infile extdata(bookings.csv) firstobs=2 DSD;
-
+	
+	* Defining variable lengths for table;
 	length family_name $ 20 
            brochure_code $ 1 
            room_type $ 10 
            booking_id $ 7
            destination_code $ 2;
-
+	
+	* Inputting data variables to import;
 	input  family_name $ 
            brochure_code $ 
            room_type $
@@ -55,6 +58,7 @@ data custdata.bookings;
            holiday_cost : nlmnlgbp8.2
            destination_code $;
 
+	* Adding labels to variables;
 	label   booking_id = 'Booking ID'
 			customer_id = 'Customer ID'
 			family_name = 'Family Name'
@@ -67,7 +71,8 @@ data custdata.bookings;
 			room_type = 'Room Type'
 			holiday_cost = 'Total Cost (£) of Holiday'
 			destination_code = 'Destination Code';
-
+	
+	* Defining formats for variables;
 	format booked_date DDMMYY10.
 	       departure_date DDMMYY10.
 		   holiday_cost nlmnlgbp8.2;
@@ -75,22 +80,28 @@ run;
 
 * Importing destinations csv data;
 data custdata.destinations;
+	* Import file to table;
 	infile extdata(destinations.csv) firstobs=2 DSD;
 
+	* Defining variable lengths for table;
 	length destination_code $ 2
 	       description $ 25;
 
+	* Defining variables for import;
 	input  destination_code $
            description $;
 
+	* Adding labels to variables;
 	label  destination_code = 'Destination Code'
 		   description = 'Description';
 run;
 
 * Importing households csv data;
 data custdata.households;
+	* Import file to table;
 	infile extdata(households.csv) firstobs=2 DSD;
 
+	* Defining variable lengths for table;
 	length family_name $ 20
            forename $ 15
            title $ 4
@@ -105,6 +116,7 @@ data custdata.households;
            contact_preference $ 10
            interests $ 20;
 
+	* Defining variables for import;
 	input  customer_id
            family_name $ 
            forename $ 
@@ -122,7 +134,8 @@ data custdata.households;
            interests $ 
            customer_startdate : date9.
            contact_date : date9.;
-
+	
+	* Adding labels to variables;
 	label  customer_id = 'Customer Identification'
 		   postcode = 'Postcode'
 		   family_name = 'Family Name'
@@ -140,7 +153,8 @@ data custdata.households;
 		   loyalty_id = 'Loyalty Identification'
 		   interests = 'Customer Interests'
 		   email1 = 'Email Address';
-
+	
+	* Defining formats for variables;
 	format dob DDMMYY10.
 	       customer_startdate DDMMYY10.
 		   contact_date DDMMYY10.;
@@ -148,37 +162,48 @@ run;
 
 * Importing loyalty tabulated data;
 data custdata.loyalty;
+	* Import file to table;
 	infile extdata(loyalty.dat) firstobs=2 DSD dlm='09'x;
-
+	
+	* Defining variable lengths for table;
 	length loyalty_id $ 7			
            investor_type $ 12;
 
+	* Defining variables for import;
 	input  account_id
            loyalty_id $	
            invested_date : date9.	
            initial_value	
            investor_type $
            current_value;
-
+	
+	* Adding labels to variables;
 	label  loyalty_id = 'Loyalty Identification'
 		   account_id = 'Customer Account Number'
 		   initial_value = 'Initial Share Value'
 		   investor_type = 'Type of Investor'
 		   current_value = 'Current Share Value'
 		   invested_date = 'Investment Date';
-
+	
+	* Defining formats for variables;
 	format invested_date DDMMYY10.;
 run;
 
 /* Creating interest_coding dataset to theoretically allow code 
    to generalise to new interests and codes in future */
 data custdata.interest_coding;
+	* Defining delimiter for datalines;
 	infile cards delimiter=',';
+	
+	* Defining variable lengths for table - descriptions length 32 as they are used to generate variables;
 	length code $ 5
-	       description $ 20;
+	       description $ 32;
+
+	* Defining variables for import;
 	input  code $ 
            description $;
 
+	* Codes and interests - codes separated by | - interest after comma;
 	datalines;
 A|K|L,Mountaineering
 B,Water Sports
@@ -197,7 +222,7 @@ V|Y|Z,Trail Walking
 run;
 
 /* Producing a PDF of the Metadata for bookings, destinations, households, loyalty */
-ods pdf file="&report_dest.\ReportA.pdf";
+ods pdf file="&report_dest.\ReportA.pdf" style=Journal;
 
 	* Metadata Output for Bookings Dataset;
 	%proccontents(custdata, bookings, title = Metadata for Holiday Bookings Dataset., outdat=custmeta.metadata_bookings);

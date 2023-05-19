@@ -1,7 +1,7 @@
 ************************************************************************
 * Name: travel_agency_data_cleaning.sas                                *
 * Description: Travel Agency Project Data Cleaning                     *
-* Creation Date: 06/04/2023                                            *
+* Creation Date: 17/05/2023                                            *
 * Created by: James Wright                                             *
 *             Graduate Programmer                                      *
 *             Katalyze Data Ltd.                                       *
@@ -13,31 +13,63 @@
 
 *------ Do not unintentionally edit below this line ------------------------------------------------------------;
 
+
+/*** Creating Formats ***/
+
+/* Creating path to shared folder for formats*/
+libname shared "&shared_path.";
+
+/* Creating a format to associate gender variables with gender, genderfmt*/
+proc format lib=shared;
+	value $ genderfmt
+	        'M' = 'Male'
+			'F' = 'Female'
+			'' = 'Missing';
+run;
+
+/* Creating a format to associate descriptions with destination code, destfmt */
+* Formatting table for proc format;
+data work.destfmt;
+	set custdata.destinations(rename=(destination_code=start description=label));
+	fmtname = 'destfmt';
+	type = 'C';
+run;
+
+* Creating format destfmt;
+proc format cntlin=work.destfmt lib=shared;
+run;
+
 /*** Preparing Houshold Data for Analysis ***/
 
-/* Storing interests distinctly in macro variables to produce interest binary columns in household_detail 
-   in macro below */
+/* Produce any number of binary interest columns in household_detail using values from custdata.interest_coding dataset 
+   - allows for change of codes and gathered interests in that dataset without the need to change datastep code! :) */
+
+* Storing interests distinctly in macro variables to produce interest binary columns in household_detail in macro below;
 proc sql noprint;
 	select count(*), translate(trim(description),'_',' '), trim(code)
 	into :numobs, :interest1-, :code1-
 	from custdata.interest_coding;
 quit;
 
-/* Macro to produce any number of binary interest columns in household_detail using values from custdata.interest_coding dataset 
-   - allows for change of codes and gathered interests in that dataset without the need to change datastep code! :) */
+* Macro to produce any number of binary interest columns within a datastep from above macro variables containing interests ;
 %macro interest_columns;
+	%* For each interest produced in query above;
 	%do n = 1 %to &numobs.;
+		%* Compile a perl expression pattern number to identify an interest code in string;
 		if _N_ = 1 then int_code&n. = prxparse("/&&code&n/");
+
+		%* If interest is in row, assign corresponding variable a 1, else 0;
 		if prxmatch(int_code&n.,interests) > 0 then &&interest&n = 1;
 		else &&interest&n = 0;
 		retain int_code&n.;
+		
 		drop int_code&n.;
 	%end;
 %mend;
 
 
 /* Sorting data by households by postcode address_1 gender dob, to later assign a unique id and primary householder*/
-%procsort(custdata, households, byvars=postcode address_1 gender dob, out_data = custstag.households_detail);
+%procsort(custdata, households, byvars=postcode address_1 gender dob, outdat = custstag.households_detail);
 
 /* Creating households_detail dataset - formatting and cleaning existing columns, creating household_id and primary householder columns */
 /* Dividing households_detail dataset into contact by post or contact by email datasets*/
@@ -98,25 +130,17 @@ data custstag.households_detail
 	* Separating customers by contact method, only need primary_householder;
 	if upcase(contact_preference) = 'E-MAIL' and primary_householder=1 then output custstag.contact_email;
 	if upcase(contact_preference) = 'POST' and primary_householder=1 then output custstag.contact_post; 
-
-run;
 	
+	* Adding labels and formats to table for reporting purposes;
+	format gender $ genderfmt.;
+run;
+
+/* Moving households_detail data from staging to processed folders and other data management now finished  */
+%procdatasets(households_detail, 
+              inlib=custstag, outlib=custdetl, copy=1, delete=1);
+	
+
 /*** Preparing Booking Data for Analysis ***/
-
-/* Creating a format to associate descriptions with destination code */
-
-* Creating path to shared folder for formats;
-libname shared "&shared_path.";
-
-* Using proc format cntlin to create a destination format;
-data work.destfmt;
-	set custdata.destinations(rename=(destination_code=start description=label));
-	fmtname = 'destfmt';
-	type = 'C';
-run;
-
-proc format cntlin=work.destfmt lib=shared;
-run;
 
 /* Dividing bookings data into datasets of more or less than 6 weeks away*/
 data custstag.bookings_deposit custstag.bookings_balance(drop=deposit);
@@ -134,6 +158,7 @@ data custstag.bookings_deposit custstag.bookings_balance(drop=deposit);
 		output custstag.bookings_balance;
 	end;
 
+	* Adding labels and formats to table for reporting purposes;
 	label destination_code = 'Destination'
           deposit = 'Deposit Paid (£) for Holiday'
           balance = 'Balance Paid (£) for Holiday';
@@ -143,39 +168,29 @@ data custstag.bookings_deposit custstag.bookings_balance(drop=deposit);
 run;
 
 * Sorting bookings_deposit and bookings_balance by booked_date for reporting purposes;
-%procsort(custstag, bookings_deposit, booked_date, out_data = custstag.bookings_deposit);
-%procsort(custstag, bookings_balance, booked_date, out_data = custstag.bookings_balance);
+%procsort(custstag, bookings_deposit, booked_date, outdat = custstag.bookings_deposit);
+%procsort(custstag, bookings_balance, booked_date, outdat = custstag.bookings_balance);
 
-
-/* Moving data from staging to processed folders and other data management now finished  */
-proc datasets lib=custstag nolist;
-	* Moving from staging into marts folder;
-	copy out=custmart;
-		select contact_email contact_post 
-               bookings_deposit bookings_balance;
-	* Moving from staging into detail folder;
-	copy out=custdetl;
-		select households_detail;
-	* Deleting staging datasets after completed data processing;
-	delete households_detail 
-           contact_email contact_post 
-           bookings_deposit bookings_balance;
-quit;
+/* Moving contact and bookings data from staging to processed folders and other data management now finished  */
+%procdatasets(contact_email contact_post bookings_deposit bookings_balance, 
+              inlib=custstag, outlib=custmart, copy=1, delete=1);
 
 
 /*** Data Preparation for Profiling and Analysis ***/
-/* Producing shareholder dataset of customers with loyalty_id by inner joining with data from households*/
-/* Producing household_only dataset of customers who have not made a booking 
-   - Select household data where the customer id does not exist in the bookings dataset */
+
+/* Create shareholder and household_only datasets */
 proc sql noprint;
-	
+
+	/* Producing shareholder dataset of customers with loyalty_id by inner joining with data from households*/
 	create table custstag.shareholders as
 		select h.*, l.investor_type, l.account_id, l.invested_date, l.initial_value, l.current_value
 		from custdata.loyalty as l
 				inner join
 		 	custdata.households as h
         on l.loyalty_id = h.loyalty_id;
-
+	
+	/* Producing household_only dataset of customers who have not made a booking 
+      - Select household data where the customer id does not exist in the bookings dataset */
 	create table custstag.household_only as
 		select *
 		from custdetl.households_detail as hd
@@ -184,24 +199,15 @@ proc sql noprint;
                                     );
 quit;
 
-
-/* Moving data from staging to processed folders and other data management now finished processing */
-proc datasets lib=custstag nolist;
-	* Moving from staging into detail folder;
-	copy out=custdetl;
-		select shareholders
-               household_only;
-
-	* Deleting staging datasets after completed data processing;
-	delete shareholders
-           household_only;
-quit;
+/* Moving shareholders and household_only data from staging to processed folders and other data management now finished  */
+%procdatasets(shareholders household_only, 
+              inlib=custstag, outlib=custdetl, copy=1, delete=1);
 
 /*** Reporting ***/
-ods pdf file="&report_dest.\ReportB.pdf";
+ods pdf file="&report_dest.\ReportB.pdf" style=Journal;
 	* Producing a report of bookings_deposit with 30 observations;
-	%procprint(custmart, bookings_deposit, numobs=30, title=Most recent &numobs. bookings that are more than 6 weeks from the departure date.);
+	%procprint(custmart, bookings_deposit, numobs=30, title=Most recent 30 bookings that are more than 6 weeks from the departure date.);
 
 	* Producing a report of bookings_balance with 30 observations;
-	%procprint(custmart, bookings_balance, numobs=30, title=%str(Most recent &numobs. bookings that are less than 6 weeks from the departure date.));
+	%procprint(custmart, bookings_balance, numobs=30, title=%str(Most recent 30 bookings that are less than 6 weeks from the departure date.));
 ods pdf close;
