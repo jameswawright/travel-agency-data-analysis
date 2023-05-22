@@ -29,7 +29,7 @@
 * Assigning path to point data libraries to;
 %let data_path = &project_path.\SAS\Data;
 * Assigning path to reports folder;
-%let report_dest = &project_path.\SAS\Reports;
+%let report_path = &project_path.\SAS\Reports;
 * Assigning path to shared library;
 %let shared_path = &project_path.\SAS\Shared;
 

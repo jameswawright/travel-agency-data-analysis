@@ -15,9 +15,14 @@
 */
 
 %macro proccontents(lib, dat, title=, outdat=);
+	
+	%* Testing dataset loaded successfully, else abort and give error;
+	%dsexist(&lib., &dat.);
+
 	%* Make title and footnote if included;
 	%if title ne %str() %then %do;
-		title %str("&title."); 
+		ods noproctitle;
+		title %str(%sysfunc(propcase(" &title."))); 
 		footnote %str("Produced on &SYSDATE9. by &SYSUSERID..");
 	%end;
 
@@ -28,6 +33,7 @@
 	
 	%* Reset title and footnote;
 	%if title ne %str() %then %do;
+		ods proctitle;
 		title; 
 		footnote;
 	%end;

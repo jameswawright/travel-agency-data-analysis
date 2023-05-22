@@ -78,6 +78,9 @@ data custdata.bookings;
 		   holiday_cost nlmnlgbp8.2;
 run;
 
+%* Testing dataset loaded successfully, else abort and give error;
+%dsexist(custdata, bookings);
+
 * Importing destinations csv data;
 data custdata.destinations;
 	* Import file to table;
@@ -95,6 +98,9 @@ data custdata.destinations;
 	label  destination_code = 'Destination Code'
 		   description = 'Description';
 run;
+
+%* Testing dataset loaded successfully, else abort and give error;
+%dsexist(custdata, destinations);
 
 * Importing households csv data;
 data custdata.households;
@@ -160,6 +166,9 @@ data custdata.households;
 		   contact_date DDMMYY10.;
 run;
 
+%* Testing dataset loaded successfully, else abort and give error;
+%dsexist(custdata, households);
+
 * Importing loyalty tabulated data;
 data custdata.loyalty;
 	* Import file to table;
@@ -189,18 +198,21 @@ data custdata.loyalty;
 	format invested_date DDMMYY10.;
 run;
 
+%* Testing dataset loaded successfully, else abort and give error;
+%dsexist(custdata, loyalty);
+
 /* Creating interest_coding dataset to theoretically allow code 
    to generalise to new interests and codes in future */
-data custdata.interest_coding;
+data custdata.interests;
 	* Defining delimiter for datalines;
 	infile cards delimiter=',';
 	
 	* Defining variable lengths for table - descriptions length 32 as they are used to generate variables;
-	length code $ 5
+	length interest_code $ 5
 	       description $ 32;
 
 	* Defining variables for import;
-	input  code $ 
+	input  interest_code $ 
            description $;
 
 	* Codes and interests - codes separated by | - interest after comma;
@@ -221,24 +233,29 @@ V|Y|Z,Trail Walking
 ;
 run;
 
+%* Testing dataset loaded successfully, else abort and give error;
+%dsexist(custdata, interests);
+
 /* Producing a PDF of the Metadata for bookings, destinations, households, loyalty */
-ods pdf file="&report_dest.\ReportA.pdf" style=Journal;
+ods pdf file="&report_path.\ReportA-Metadata.pdf" style=Journal;
+	* Change report orientation;
+	option orientation=portrait;
 
 	* Metadata Output for Bookings Dataset;
-	%proccontents(custdata, bookings, title = Metadata for Holiday Bookings Dataset., outdat=custmeta.metadata_bookings);
+	%proccontents(custdata, bookings, title = Metadata for Holiday Bookings Dataset, outdat=custmeta.metadata_bookings);
 	ods text='When defining the format the bookings dataset, we have assumed an upper-bound of £99,999.99 on holiday cost through intuition. It was necessary to informat all dates with date9, and skip a header on the first line contained in the csv file.';
 	
 	* Metadata Output for Destinations Dataset;
-	%proccontents(custdata, destinations, title = Metadata for Holiday Destinations Dataset., outdat=custmeta.metadata_destinations);
+	%proccontents(custdata, destinations, title = Metadata for Holiday Destinations Dataset, outdat=custmeta.metadata_destinations);
 	ods text='We assumed descriptions of a maximum length 25, and skipped a header line in the CSV-file read-in.';
 	
 	* Metadata Output for Households Dataset;
-	%proccontents(custdata, households, title = Metadata for Customer Details Dataset., outdat=custmeta.metadata_households);
+	%proccontents(custdata, households, title = Metadata for Customer Details Dataset, outdat=custmeta.metadata_households);
 	ods text='We have chosen the maximum length of Address1 based on the longest street name in London, St Martin-in-the-Fields Church Path, which is 35 characters, plus 15 characters tolerance for "extras" like flat numbers and spaces. We make a similar assumptions for Address2 with 58 characters to accommodate the town Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch. 
 It was necessary to informat all dates with date9.';
 	
 	* Metadata Output for Loyalty Dataset;
-	%proccontents(custdata, loyalty, title = Metadata for Loyalty Shares Dataset., outdat=custmeta.metadata_loyalty);
+	%proccontents(custdata, loyalty, title = Metadata for Loyalty Shares Dataset, outdat=custmeta.metadata_loyalty);
 	ods text='It was necessary to informat all dates with date9. We assumed descriptions will be of maximum length 25.';
 
 ods pdf close;

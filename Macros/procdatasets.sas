@@ -17,11 +17,14 @@
 
 %macro procdatasets(select, inlib=custstag, outlib=work, copy=1, delete=0);
 	proc datasets lib=&inlib. nolist;
+
+	%* Copy datasets select into library outlib;
 	%if &copy. = 1 %then %do;
 		copy out=&outlib.;
 		select &select.;
 	%end;
-
+	
+	%* Delete datasets select now copied out of inlib;
 	%if &delete. = 1 %then %do;
 		delete &select.;
 	%end;

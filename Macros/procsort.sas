@@ -19,6 +19,10 @@
 */
 
 %macro procsort(lib, dat, byvars, keepvars=, nodup=0, desc=0, outdat=work.ds_sorted);
+	%* Testing dataset loaded successfully, else abort and give error;
+	%dsexist(&lib., &dat.);
+	
+	%* Sort data;
 	proc sort data=&lib..&dat. out=&outdat.
 		                                     %if &keepvars. ne %str() %then (keep=&keepvars.); %* Keep option;
                                              %if &nodup. ne 0 %then nodupkey; %* Nodupkey option;
