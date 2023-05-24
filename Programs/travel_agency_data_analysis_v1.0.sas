@@ -13,8 +13,22 @@
 
 *------ Do not unintentionally edit below this line ------------------------------------------------------------;
 
+/* Making dataset of non-deceased household_detail data for frequency analysis*/
+proc sql;
+	create table work.households_detail_alive as
+		select *
+		from custdetl.households_detail
+		where loyalty_id not in (select loyalty_id
+		                             from custexcp.customer_deceased
+                                    );;
+run;
 
-/* Outputting PDF reports on frequent interests and frequent interests by country and gender */
+* Check households_detail_alive successful, else abort;
+%dsexist(work, households_detail_alive);
+
+/* Outputting PDF reports on frequent interests and frequent interests by country and gender
+ - Proc tabulate is used instead of proc freq as it requires no dealing with a 'zero category' if taking a sum
+   so is easier */
 ods pdf file="&report_path.\ReportC-Interest_Frequencies.pdf" style=Journal;
 	* Change report orientation;
 	option orientation=landscape;
@@ -23,7 +37,7 @@ ods pdf file="&report_path.\ReportC-Interest_Frequencies.pdf" style=Journal;
 	* Frequency count report for interests - no need to retain output data for future reporting;
 	%proctabulate(custdetl, households_detail, sum, 
                   vars=%translate(&interest.,' ','|'),
-				  title=Frequency count for each type of holiday interest, 
+				  title=Frequency count for each type of holiday interest (including deceased), 
                   box=Frequency, 
                   maxdec=8.);
 	
@@ -33,7 +47,23 @@ ods pdf file="&report_path.\ReportC-Interest_Frequencies.pdf" style=Journal;
                   class1=gender,
 				  class2=address_4, 
                   outdat=work.freq_interests_byaddress4gender,
-				  title=Frequency count for each type of holiday interest by country and gender, 
+				  title=Frequency count for each type of holiday interest by country and gender (including deceased), 
+                  box=Frequency, 
+                  maxdec=8.);
+
+		* Frequency count report for alive interests - no need to retain output data for future reporting;
+	%proctabulate(work, households_detail_alive, sum, 
+                  vars=%translate(&interest.,' ','|'),
+				  title=Frequency count for each type of holiday interest (Non-Deceased), 
+                  box=Frequency, 
+                  maxdec=8.);
+	
+	* Frequency count report for interests by country and gender - retaining output data for future reporting;
+	%proctabulate(work, households_detail_alive, sum, 
+                  vars=%translate(&interest.,' ','|'), 
+                  class1=gender,
+				  class2=address_4,
+				  title=Frequency count for each type of holiday interest by country and gender (Non-Deceased), 
                   box=Frequency, 
                   maxdec=8.);
 ods pdf close;

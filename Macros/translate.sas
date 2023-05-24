@@ -13,6 +13,7 @@
          symfrom : characters to translate from
 */
 
-%macro translate(interest, symto, symfrom);
-	%sysfunc(translate(&interest.,&symto.,&symfrom.))
+%macro translate(macvar, symto, symfrom);
+	%* Translate macro function;
+	%sysfunc(translate(&macvar.,&symto.,&symfrom.))
 %mend;

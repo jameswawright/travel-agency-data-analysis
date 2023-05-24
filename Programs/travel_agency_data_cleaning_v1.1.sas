@@ -32,7 +32,7 @@ run;
 data work.destfmt;
 	set custdata.destinations(rename=(destination_code=start description=label));
 	fmtname = 'destfmt';
-	type = 'C';
+	type    = 'C';
 run;
 
 * Creating format destfmt;
@@ -85,17 +85,30 @@ quit;
 %mend;
 
 /* Sorting data by households by postcode address_1 gender dob, to later assign a unique id and primary householder
-   - removing potential duplicates on sort for potential analysis purposes as all rows should be unique */
-%procsort(custdata, households, byvars=postcode address_1 gender dob, outdat = custstag.households_detail, nodup=1);
+   - removing potential duplicates on sort for potential analysis purposes as all rows should be unique
+   - Left joining with investor_type to prevent dead people being made primary householder later */
+/*%procsort(custdata, households, byvars=postcode address_1 gender dob, outdat = custstag.households_detail, nodup=1);*/
+proc sql noprint;
+	create table custstag.households_detail as
+		select distinct h.*, l.investor_type
+		from custdata.households as h
+			left join
+			custdata.loyalty as l
+		on h.loyalty_id = l.loyalty_id
+		order by postcode, address_1, gender, dob; 
+quit;
+
 
 /* Creating households_detail dataset - formatting and cleaning existing columns, creating household_id and primary householder columns */
 /* Dividing households_detail dataset into contact by post or contact by email datasets*/
-/* Creating exceptions datasets if gender and title are both missing, or interest code found that does not match an interest description */
-data custstag.households_detail 
-     custstag.contact_post(keep=customer_id contact_preference address_1--postcode greeting) 
-     custstag.contact_email(keep=customer_id contact_preference email1 greeting)
+/* Creating exceptions datasets if gender and title are both missing, or interest code found that does not match an interest description,
+   or if the customer is deceased */
+data custstag.households_detail
+     custstag.contact_post(keep=customer_id contact_date contact_preference address_1--postcode greeting) 
+     custstag.contact_email(keep=customer_id contact_date contact_preference email1 greeting)
      custexcp.gender_title_missing(keep=customer_id)
-	 custexcp.&interest_error_ds.(keep=customer_id interests);
+	 custexcp.&interest_error_ds.(keep=customer_id interests)
+     custexcp.customer_deceased(keep=customer_id loyalty_id);
 	
 	* Import data by postcode address_1 gender dob to allow creation of household_id and primary_householder;
 	set custstag.households_detail;
@@ -128,11 +141,18 @@ data custstag.households_detail
 	past_id = lag(household_id);
 	if first.address_1 = 0 then household_id = past_id;
 	drop past_id;
-
+	
+	/* Adding deceased customers to exceptions */
+	if upcase(investor_type)='DECEASED' then output custexcp.customer_deceased;
+	
 	* Assigning primary householder - if oldest female, else oldest male, else oldest in household 
-	   - equivalent to first gender in household if ordered by gender and dob;
-	if first.address_1=1 and first.gender=1 then primary_householder = 1;
+	   - equivalent to first gender in household if ordered by gender and dob
+	   - Making next in-line the primary_householder if higher householder is dead, as dead people shouldn't get mail;
+	if first.address_1=1 and first.gender=1 and upcase(investor_type) ne 'DECEASED' then primary_householder = 1;
+	else if first.address_1 = 1 and lag(upcase(investor_type)) = 'DECEASED' then primary_householder = 1;
 	else primary_householder = 0;
+
+	drop investor_type;
 
 	* Adding greeting to households data;
 	if missing(forename) or missing(family_name) or missing(gender) then greeting=catt('Dear', ' Customer');
@@ -212,13 +232,26 @@ run;
 proc sql noprint;
 
 	/* Producing shareholder dataset of customers with loyalty_id by inner joining with data from households
-       - allow potential duplicate rows as more than 1 investment may plausibly be made on a given day by the same person */
+       - Removing deceased as they are by definition an ex-customer
+       - Allow potential duplicate rows as more than 1 investment may plausibly be made on a given day by the same person */
 	create table custstag.shareholders as
 		select h.*, l.investor_type, l.account_id, l.invested_date, l.initial_value, l.current_value
 		from custdata.loyalty as l
 				inner join
-		 	custdata.households as h
-        on l.loyalty_id = h.loyalty_id;
+		 	custdetl.households_detail as h
+        on l.loyalty_id = h.loyalty_id
+		where upcase(investor_type) ne 'DECEASED';
+
+	/* Producing shareholder_deceased dataset of customers with loyalty_id by inner joining with data from households
+       for exceptions.
+       - Allow potential duplicate rows as more than 1 investment may plausibly be made on a given day by the same person */
+	create table custstag.shareholders_deceased as
+		select h.*, l.investor_type, l.account_id, l.invested_date, l.initial_value, l.current_value
+		from custdata.loyalty as l
+				inner join
+		 	custdetl.households_detail as h
+        on l.loyalty_id = h.loyalty_id
+		where upcase(investor_type) = 'DECEASED';
 	
 	/* Producing household_only dataset of customers who have not made a booking 
       - Select non-duplicated household data where the customer id does not exist in the bookings dataset */
@@ -232,11 +265,14 @@ quit;
 
 %* Testing datasets shareholders and household_only created successfully, else abort and give error;
 %dsexist(custstag, shareholders);
+%dsexist(custstag, shareholders_deceased);
 %dsexist(custstag, household_only);
 
 /* Moving shareholders and household_only data from staging to processed folders and other data management now finished  */
 %procdatasets(shareholders household_only, 
               inlib=custstag, outlib=custdetl, copy=1, delete=1);
+/* Moving deceased to from staging to exceptions folder */
+%procdatasets(shareholders_deceased, inlib=custstag, outlib=custexcp, copy=1, delete=1);
 
 /*** Reporting ***/
 ods pdf file="&report_path.\ReportB-Bookings.pdf" style=Journal;
