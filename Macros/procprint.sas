@@ -1,4 +1,4 @@
-************************************************************************
+%***********************************************************************
 * Name: procprint.sas                                                  *
 * Description: Macro to produce a printed report using proc print      *
 * Creation Date: 17/05/2023                                            *

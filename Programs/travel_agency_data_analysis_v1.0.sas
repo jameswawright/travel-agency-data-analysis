@@ -19,16 +19,17 @@ ods pdf file="&report_path.\ReportC-Interest_Frequencies.pdf" style=Journal;
 	* Change report orientation;
 	option orientation=landscape;
 
+
 	* Frequency count report for interests - no need to retain output data for future reporting;
 	%proctabulate(custdetl, households_detail, sum, 
-                  vars=%sysfunc(translate(&interest.,' ','|')),
+                  vars=%translate(&interest.,' ','|'),
 				  title=Frequency count for each type of holiday interest, 
                   box=Frequency, 
                   maxdec=8.);
 	
 	* Frequency count report for interests by country and gender - retaining output data for future reporting;
 	%proctabulate(custdetl, households_detail, sum, 
-                  vars=%sysfunc(translate(&interest.,' ','|')), 
+                  vars=%translate(&interest.,' ','|'), 
                   class1=gender,
 				  class2=address_4, 
                   outdat=work.freq_interests_byaddress4gender,

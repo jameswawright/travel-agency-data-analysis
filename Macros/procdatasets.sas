@@ -1,4 +1,4 @@
-************************************************************************
+%***********************************************************************
 * Name: procdatasets.sas                                               *
 * Description: Macro to copy and delete datasets between libraries     *
 * Creation Date: 19/05/2023                                            *

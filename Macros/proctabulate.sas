@@ -1,4 +1,4 @@
-************************************************************************
+%***********************************************************************
 * Name: proctabulate.sas                                               *
 * Description: Macro to produce a table based on statistics            *
 * Creation Date: 18/05/2023                                            *

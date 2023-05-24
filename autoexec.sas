@@ -9,7 +9,7 @@
 
 *** USER EDITS DETAILS BELOW ***;
 
-/* Add your path to project file */
+/* Add your path to root of project file */
 %let project_path=C:\Users\james.wright\OneDrive - Amadeus Software\Case Studies\Travel Agency;
 
 
@@ -23,6 +23,7 @@
 
 
 *------ Do not unintentionally edit below this line ------------------------------------------------------------;
+
 /* Creating paths to different parts of the folder structure */
 * Assigning path to original datasets;
 %let indata_path = &project_path.\SAS\Data\Inputs;
@@ -40,7 +41,9 @@ options mautosource sasautos=(mymacros, sasautos);
 
 /* Storing default system options to restore later */
 data _null_;
-	call symputx('msglvl', 'g');
+	%storeoptval(msglevel); *msglevel option;
+	%storeoptval(autocorrect); *autocorrect option;
+	%storeoptval(fmtsearch); *fmtsearch option;
 run;
 
 /* Other Session Options */
@@ -48,3 +51,5 @@ run;
 options msglevel=i;
 * Formats found in shared file;
 options fmtsearch=(shared);
+* Turning off autocorrect for safety;
+options noautocorrect;
