@@ -4,7 +4,6 @@
 * V1 Creation Date: 04/05/2023                                                                   *
 * Publication Date: 24/05/2023                                                                   *
 * Created by: James Wright                                                                       *
-*             Graduate Programmer                                                                *
 *             Katalyze Data Ltd.                                                                 *
 **************************************************************************************************;
 
